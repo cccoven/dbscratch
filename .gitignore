@@ -34,3 +34,7 @@
 /cmake-build
 
 /bin
+
+.vscode
+
+.idea
