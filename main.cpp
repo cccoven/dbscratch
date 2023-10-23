@@ -1,21 +1,12 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <memory>
+#include <vector>
+#include <array>
+#include <algorithm>
 
-enum MetaCommandResult {
-    META_COMMAND_SUCCESS,
-    META_COMMAND_UNRECOGNIZED_COMMAND,
-};
-
-enum PrepareResult {
-    PREPARE_SUCCESS,
-    PREPARE_UNRECOGNIZED_STATEMENT,
-};
-
-enum StatementType {
-    STATEMENT_INSERT,
-    STATEMENT_SELECT,
-};
+#include "main.h"
 
 class MetaCommand {
 public:
@@ -31,33 +22,23 @@ MetaCommandResult MetaCommand::execute(const std::string &input) {
     return META_COMMAND_UNRECOGNIZED_COMMAND;
 }
 
-const size_t COLUMN_USERNAME_SIZE = 32;
-const size_t COLUMN_EMAIL_SIZE = 255;
+void Row::serialize(void *slot) {
 
-class Row {
-    public:
-        Row() = default;
+}
 
-    public:
-        uint32_t id;
-        std::string username;
-        std::string email;
-};
+void Row::deserialize() {}
 
-class Statement {
-public:
-    Statement() = default;
-
-    bool startWith(const std::string &input, const std::string &prefix);
-
-    PrepareResult prepareStatement(const std::string &input);
-
-    void execute();
-
-public:
-    StatementType type;
-    Row row_to_insert;
-};
+void *Table::rowSlot() {
+    uint32_t page_num = num_rows / ROWS_PER_PAGE;
+    void *page = pages[page_num];
+    if (page == nullptr) {
+        // 分配一个页
+        page = pages[page_num] = new char[PAGE_SIZE];
+    }
+    uint32_t row_offset = num_rows % ROWS_PER_PAGE;
+    uint32_t byte_offset = row_offset * ROW_SIZE;
+    return (char *) page + byte_offset;
+}
 
 bool Statement::startWith(const std::string &input, const std::string &prefix) {
     return input.compare(0, prefix.length(), prefix) == 0;
@@ -92,19 +73,23 @@ void Statement::execute() {
     }
 }
 
+ExecuteResult Statement::executeInsert(std::shared_ptr<Table> &table) {
+    if (table->num_rows >= TABLE_MAX_ROWS) {
+        return EXECUTE_TABLE_FULL;
+    }
 
-const uint32_t PAGE_SIZE = 4096;
-const uint32_t TABLE_MAX_PAGES = 100;
-// const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
+    void *slot = table->rowSlot();
+    row_to_insert.serialize(slot);
+    table->num_rows += 1;
 
-class Table {
-public:
-    uint32_t num_rows;
-    void *pages[TABLE_MAX_PAGES];
-};
+    return EXECUTE_SUCCESS;
+}
+
+ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {}
 
 int main() {
     std::string command;
+    std::shared_ptr<Table> table = std::make_shared<Table>();
 
     while (true) {
         std::cout << "db > ";
@@ -125,6 +110,9 @@ int main() {
         Statement statement{};
         switch (statement.prepareStatement(command)) {
             case PREPARE_SUCCESS:
+                break;
+            case PREPARE_SYNTAX_ERROR:
+                std::cout << "syntax error, could not parse statement" << std::endl;
                 break;
             case PREPARE_UNRECOGNIZED_STATEMENT:
                 std::cout << "unrecognized statement: " << command << std::endl;
