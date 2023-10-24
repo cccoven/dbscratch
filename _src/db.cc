@@ -1,4 +1,4 @@
-#include "main2.h"
+#include "db.h"
 
 class MetaCommand {
 public:
@@ -14,21 +14,11 @@ MetaCommandResult MetaCommand::execute(const std::string &input) {
     return META_COMMAND_UNRECOGNIZED_COMMAND;
 }
 
-void Row::serialize(void *slot) {
-    std::memcpy((char *) slot + ID_OFFSET, &id, ID_SIZE);
-    std::memcpy((char *) slot + USERNAME_OFFSET, username.data(), USERNAME_SIZE);
-    std::memcpy((char *) slot + EMAIL_OFFSET, email.data(), EMAIL_SIZE);
-}
-
-void Row::deserialize(void *slot, Row &row) {
-    std::memcpy(&row.id, (char *) slot + ID_OFFSET, ID_SIZE);
-    row.username.assign((char *) slot + USERNAME_OFFSET);
-    row.email.assign((char *) slot + EMAIL_OFFSET);
-}
-
 template <typename T>
 Table<T>::~Table() {
-
+    for (Page<T> *page: pages) {
+        delete page;
+    }
 }
 
 template <typename T>
@@ -36,7 +26,11 @@ void Table<T>::storeRow(T t) {
     uint32_t page_num = num_rows / ROWS_PER_PAGE;
     Page<T> *page = pages[page_num];
     if (page == nullptr) {
+        // 这里的 page 是一个局部变量
+        // 使用 new Page<T>() 之后会分配一个新的指针，并不会修改 pages[page_num] 原来指向的指针
+        // 所以这里需要将 pages[page_num] 指向新的指针
         page = pages[page_num] = new Page<T>();
+        num_pages++;
     }
     page->rows[page->index] = t;
     page->index++;
@@ -90,34 +84,19 @@ ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
 
 template <typename T>
 ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
-    // Row row{};
-    // for (uint32_t i = 0; i < table->num_rows; i++) {
-    //     Row::deserialize(table->rowSlot(i), row);
-    //     std::cout
-    //         << "("
-    //         << "id: " << row.id
-    //         << " username: " << row.username
-    //         << " email: " << row.email
-    //         << ")"
-    //         << std::endl;
-    // }
-
-    std::vector<Row> rows;
-
-    // for (int i = 0; i <= table->current_page; i++) {
-    //
-    // }
-    //
-    // for (Page<T> &p: table->pages) {
-    //     Row row = p.rows[p.index];
-    //     std::cout
-    //         << "("
-    //         << "id: " << row.id
-    //         << " username: " << row.username
-    //         << " email: " << row.email
-    //         << ")"
-    //         << std::endl;
-    // }
+    for (int i = 0; i < table->num_pages; i++) {
+        Page<T> *page = table->pages[i];
+        for (int j = 0; j < page->index; j++) {
+            Row row = page->rows[j];
+            std::cout
+                    << "("
+                    << "id: " << row.id
+                    << " username: " << row.username
+                    << " email: " << row.email
+                    << ")"
+                    << std::endl;
+        }
+    }
 
     return EXECUTE_SUCCESS;
 }
