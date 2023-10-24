@@ -1,13 +1,4 @@
-#include <iostream>
-#include <string>
-#include <sstream>
-#include <memory>
-#include <vector>
-#include <array>
-#include <algorithm>
-#include <cstring>
-
-#include "main.h"
+#include "main2.h"
 
 class MetaCommand {
 public:
@@ -35,30 +26,29 @@ void Row::deserialize(void *slot, Row &row) {
     row.email.assign((char *) slot + EMAIL_OFFSET);
 }
 
-Table::~Table() {
-    for (void *&page: pages) {
-        delete[] (char *) page;
-        page = nullptr;
-    }
+template <typename T>
+Table<T>::~Table() {
+
 }
 
-void *Table::rowSlot(uint32_t row_num) {
-    uint32_t page_num = row_num / ROWS_PER_PAGE;
-    void *page = pages[page_num];
+template <typename T>
+void Table<T>::storeRow(T t) {
+    uint32_t page_num = num_rows / ROWS_PER_PAGE;
+    Page<T> *page = pages[page_num];
     if (page == nullptr) {
-        // 分配一个页
-        page = pages[page_num] = new char[PAGE_SIZE];
+        page = pages[page_num] = new Page<T>();
     }
-    uint32_t row_offset = row_num % ROWS_PER_PAGE;
-    uint32_t byte_offset = row_offset * ROW_SIZE;
-    return (char *) page + byte_offset;
+    page->rows[page->index] = t;
+    page->index++;
 }
 
-bool Statement::startWith(const std::string &input, const std::string &prefix) {
+template <typename T>
+bool Statement<T>::startWith(const std::string &input, const std::string &prefix) {
     return input.compare(0, prefix.length(), prefix) == 0;
 }
 
-PrepareResult Statement::prepareStatement(const std::string &input) {
+template <typename T>
+PrepareResult Statement<T>::prepareStatement(const std::string &input) {
     if (startWith(input, "insert")) {
         type = STATEMENT_INSERT;
         std::istringstream assigned_args(input.substr(7));
@@ -76,7 +66,8 @@ PrepareResult Statement::prepareStatement(const std::string &input) {
     return PREPARE_UNRECOGNIZED_STATEMENT;
 }
 
-ExecuteResult Statement::execute(std::shared_ptr<Table> &table) {
+template <typename T>
+ExecuteResult Statement<T>::execute(std::shared_ptr<Table<T>> &table) {
     switch (type) {
         case STATEMENT_INSERT:
             return executeInsert(table);
@@ -85,36 +76,55 @@ ExecuteResult Statement::execute(std::shared_ptr<Table> &table) {
     }
 }
 
-ExecuteResult Statement::executeInsert(std::shared_ptr<Table> &table) {
+template <typename T>
+ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
     if (table->num_rows >= TABLE_MAX_ROWS) {
         return EXECUTE_TABLE_FULL;
     }
 
-    row_to_insert.serialize(table->rowSlot(table->num_rows));
+    table->storeRow(row_to_insert);
     table->num_rows += 1;
 
     return EXECUTE_SUCCESS;
 }
 
-ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {
-    Row row{};
-    for (uint32_t i = 0; i < table->num_rows; i++) {
-        Row::deserialize(table->rowSlot(i), row);
-        std::cout
-            << "("
-            << "id: " << row.id
-            << " username: " << row.username
-            << " email: " << row.email
-            << ")"
-            << std::endl;
-    }
+template <typename T>
+ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
+    // Row row{};
+    // for (uint32_t i = 0; i < table->num_rows; i++) {
+    //     Row::deserialize(table->rowSlot(i), row);
+    //     std::cout
+    //         << "("
+    //         << "id: " << row.id
+    //         << " username: " << row.username
+    //         << " email: " << row.email
+    //         << ")"
+    //         << std::endl;
+    // }
+
+    std::vector<Row> rows;
+
+    // for (int i = 0; i <= table->current_page; i++) {
+    //
+    // }
+    //
+    // for (Page<T> &p: table->pages) {
+    //     Row row = p.rows[p.index];
+    //     std::cout
+    //         << "("
+    //         << "id: " << row.id
+    //         << " username: " << row.username
+    //         << " email: " << row.email
+    //         << ")"
+    //         << std::endl;
+    // }
 
     return EXECUTE_SUCCESS;
 }
 
 int main() {
     std::string command;
-    std::shared_ptr<Table> table = std::make_shared<Table>();
+    std::shared_ptr<Table<Row>> table = std::make_shared<Table<Row>>();
 
     while (true) {
         std::cout << "db > ";
@@ -132,7 +142,7 @@ int main() {
             }
         }
 
-        Statement statement{};
+        Statement<Row> statement{};
         switch (statement.prepareStatement(command)) {
             case PREPARE_SUCCESS:
                 break;

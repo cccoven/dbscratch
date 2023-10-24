@@ -1,6 +1,6 @@
 TARGET = dbscratch
 BUILD_TYPE ?= Debug # Debug or Release
-BUILD_DIR ?= cmake-build
+BUILD_DIR ?= cmake-build-debug
 
 build:
 	echo "start building...($(BUILD_TYPE))"
