@@ -31,6 +31,8 @@
 *.out
 *.app
 
+/_src
+
 /cmake-build
 
 /bin

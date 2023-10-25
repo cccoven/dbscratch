@@ -14,35 +14,42 @@ MetaCommandResult MetaCommand::execute(const std::string &input) {
     return META_COMMAND_UNRECOGNIZED_COMMAND;
 }
 
-template <typename T>
-Table<T>::~Table() {
-    for (Page<T> *page: pages) {
-        delete page;
+void Row::serialize(void *slot) {
+    std::memcpy((char *) slot + ID_OFFSET, &id, ID_SIZE);
+    std::memcpy((char *) slot + USERNAME_OFFSET, username.data(), USERNAME_SIZE);
+    std::memcpy((char *) slot + EMAIL_OFFSET, email.data(), EMAIL_SIZE);
+}
+
+void Row::deserialize(void *slot, Row &row) {
+    std::memcpy(&row.id, (char *) slot + ID_OFFSET, ID_SIZE);
+    row.username.assign((char *) slot + USERNAME_OFFSET);
+    row.email.assign((char *) slot + EMAIL_OFFSET);
+}
+
+Table::~Table() {
+    for (void *&page: pages) {
+        delete[] (char *) page;
+        page = nullptr;
     }
 }
 
-template <typename T>
-void Table<T>::storeRow(T t) {
-    uint32_t page_num = num_rows / ROWS_PER_PAGE;
-    Page<T> *page = pages[page_num];
+void *Table::rowSlot(uint32_t row_num) {
+    uint32_t page_num = row_num / ROWS_PER_PAGE;
+    void *page = pages[page_num];
     if (page == nullptr) {
-        // 这里的 page 是一个局部变量
-        // 使用 new Page<T>() 之后会分配一个新的指针，并不会修改 pages[page_num] 原来指向的指针
-        // 所以这里需要将 pages[page_num] 指向新的指针
-        page = pages[page_num] = new Page<T>();
-        num_pages++;
+        // 分配一个页
+        page = pages[page_num] = new char[PAGE_SIZE];
     }
-    page->rows[page->index] = t;
-    page->index++;
+    uint32_t row_offset = row_num % ROWS_PER_PAGE;
+    uint32_t byte_offset = row_offset * ROW_SIZE;
+    return (char *) page + byte_offset;
 }
 
-template <typename T>
-bool Statement<T>::startWith(const std::string &input, const std::string &prefix) {
+bool Statement::startWith(const std::string &input, const std::string &prefix) {
     return input.compare(0, prefix.length(), prefix) == 0;
 }
 
-template <typename T>
-PrepareResult Statement<T>::prepareStatement(const std::string &input) {
+PrepareResult Statement::prepareStatement(const std::string &input) {
     if (startWith(input, "insert")) {
         type = STATEMENT_INSERT;
         std::istringstream assigned_args(input.substr(7));
@@ -60,8 +67,7 @@ PrepareResult Statement<T>::prepareStatement(const std::string &input) {
     return PREPARE_UNRECOGNIZED_STATEMENT;
 }
 
-template <typename T>
-ExecuteResult Statement<T>::execute(std::shared_ptr<Table<T>> &table) {
+ExecuteResult Statement::execute(std::shared_ptr<Table> &table) {
     switch (type) {
         case STATEMENT_INSERT:
             return executeInsert(table);
@@ -70,32 +76,28 @@ ExecuteResult Statement<T>::execute(std::shared_ptr<Table<T>> &table) {
     }
 }
 
-template <typename T>
-ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
+ExecuteResult Statement::executeInsert(std::shared_ptr<Table> &table) {
     if (table->num_rows >= TABLE_MAX_ROWS) {
         return EXECUTE_TABLE_FULL;
     }
 
-    table->storeRow(row_to_insert);
+    row_to_insert.serialize(table->rowSlot(table->num_rows));
     table->num_rows += 1;
 
     return EXECUTE_SUCCESS;
 }
 
-template <typename T>
-ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
-    for (int i = 0; i < table->num_pages; i++) {
-        Page<T> *page = table->pages[i];
-        for (int j = 0; j < page->index; j++) {
-            Row row = page->rows[j];
-            std::cout
-                    << "("
-                    << "id: " << row.id
-                    << " username: " << row.username
-                    << " email: " << row.email
-                    << ")"
-                    << std::endl;
-        }
+ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {
+    Row row{};
+    for (uint32_t i = 0; i < table->num_rows; i++) {
+        Row::deserialize(table->rowSlot(i), row);
+        std::cout
+            << "("
+            << "id: " << row.id
+            << " username: " << row.username
+            << " email: " << row.email
+            << ")"
+            << std::endl;
     }
 
     return EXECUTE_SUCCESS;
@@ -103,7 +105,7 @@ ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
 
 int main() {
     std::string command;
-    std::shared_ptr<Table<Row>> table = std::make_shared<Table<Row>>();
+    std::shared_ptr<Table> table = std::make_shared<Table>();
 
     while (true) {
         std::cout << "db > ";
@@ -121,7 +123,7 @@ int main() {
             }
         }
 
-        Statement<Row> statement{};
+        Statement statement{};
         switch (statement.prepareStatement(command)) {
             case PREPARE_SUCCESS:
                 break;

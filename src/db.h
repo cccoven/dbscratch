@@ -1,5 +1,5 @@
-#ifndef DBSCRATCH_MAIN_H
-#define DBSCRATCH_MAIN_H
+#ifndef DBSCRATCH_DB_H
+#define DBSCRATCH_DB_H
 
 #include <iostream>
 #include <string>
@@ -17,6 +17,8 @@ enum MetaCommandResult {
 
 enum PrepareResult {
     PREPARE_SUCCESS,
+    PREPARE_NEGATIVE_ID,
+    PREPARE_STRING_TOO_LONG,
     PREPARE_SYNTAX_ERROR,
     PREPARE_UNRECOGNIZED_STATEMENT,
 };
@@ -37,10 +39,6 @@ const size_t COLUMN_EMAIL_SIZE = 255;
 class Row {
 public:
     Row() = default;
-
-    void serialize(void *slot);
-
-    static void deserialize(void *slot, Row &dst);
 
 public:
     uint32_t id;
@@ -67,20 +65,38 @@ const uint32_t TABLE_MAX_PAGES = 100;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
+template<typename T>
+class Page {
+public:
+    int index;
+    std::array<T, ROWS_PER_PAGE> rows;
+};
+
+template <typename T>
+class Pager {
+public:
+    int fd;
+    uint32_t file_len;
+    std::array<Page<T> *, TABLE_MAX_PAGES> pages;
+};
+
+template <typename T>
 class Table {
 public:
     Table() = default;
 
     ~Table();
 
-    // 从 pages 中找出一个位置存放 Row
-    void *rowSlot(uint32_t row_num);
+    void storeRow(T t);
 
 public:
+    int num_pages;
     uint32_t num_rows;
-    std::array<void *, TABLE_MAX_PAGES> pages;
+    std::array<Page<T> *, TABLE_MAX_PAGES> pages;
+    std::shared_ptr<Pager<T>> pager;
 };
 
+template <typename T>
 class Statement {
 public:
     Statement() = default;
@@ -89,15 +105,17 @@ public:
 
     PrepareResult prepareStatement(const std::string &input);
 
-    ExecuteResult execute(std::shared_ptr<Table> &table);
+    PrepareResult prepareInsert(const std::string &input);
 
-    ExecuteResult executeInsert(std::shared_ptr<Table> &table);
+    ExecuteResult execute(std::shared_ptr<Table<T>> &table);
 
-    ExecuteResult executeSelect(std::shared_ptr<Table> &table);
+    ExecuteResult executeInsert(std::shared_ptr<Table<T>> &table);
+
+    ExecuteResult executeSelect(std::shared_ptr<Table<T>> &table);
 
 public:
     StatementType type;
     Row row_to_insert;
 };
 
-#endif // DBSCRATCH_MAIN_H
+#endif // DBSCRATCH_DB_H

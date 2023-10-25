@@ -38,6 +38,10 @@ class Row {
 public:
     Row() = default;
 
+    void serialize(void *slot);
+
+    static void deserialize(void *slot, Row &dst);
+
 public:
     uint32_t id;
     std::string username;
@@ -63,29 +67,20 @@ const uint32_t TABLE_MAX_PAGES = 100;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
-template<typename T>
-class Page {
-public:
-    int index;
-    std::array<T, ROWS_PER_PAGE> rows;
-};
-
-template <typename T>
 class Table {
 public:
     Table() = default;
 
     ~Table();
 
-    void storeRow(T t);
+    // 从 pages 中找出一个位置存放 Row
+    void *rowSlot(uint32_t row_num);
 
 public:
-    int num_pages;
     uint32_t num_rows;
-    std::array<Page<T> *, TABLE_MAX_PAGES> pages;
+    std::array<void *, TABLE_MAX_PAGES> pages;
 };
 
-template <typename T>
 class Statement {
 public:
     Statement() = default;
@@ -94,11 +89,11 @@ public:
 
     PrepareResult prepareStatement(const std::string &input);
 
-    ExecuteResult execute(std::shared_ptr<Table<T>> &table);
+    ExecuteResult execute(std::shared_ptr<Table> &table);
 
-    ExecuteResult executeInsert(std::shared_ptr<Table<T>> &table);
+    ExecuteResult executeInsert(std::shared_ptr<Table> &table);
 
-    ExecuteResult executeSelect(std::shared_ptr<Table<T>> &table);
+    ExecuteResult executeSelect(std::shared_ptr<Table> &table);
 
 public:
     StatementType type;
