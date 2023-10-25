@@ -9,6 +9,7 @@
 #include <array>
 #include <algorithm>
 #include <cstring>
+#include <map>
 
 enum MetaCommandResult {
     META_COMMAND_SUCCESS,
@@ -37,9 +38,6 @@ const size_t COLUMN_USERNAME_SIZE = 32;
 const size_t COLUMN_EMAIL_SIZE = 255;
 
 class Row {
-public:
-    Row() = default;
-
 public:
     uint32_t id;
     std::string username;
@@ -72,35 +70,54 @@ public:
     std::array<T, ROWS_PER_PAGE> rows;
 };
 
-template <typename T>
+template<typename T>
 class Pager {
+public:
+    ~Pager();
+    
+    void flush(uint32_t page_num, uint32_t size);
+    
 public:
     int fd;
     uint32_t file_len;
     std::array<Page<T> *, TABLE_MAX_PAGES> pages;
 };
 
-template <typename T>
+template<typename T>
 class Table {
 public:
-    Table() = default;
-
+    Table();
+    
     ~Table();
 
     void storeRow(T t);
 
 public:
+    std::string name;
     int num_pages;
     uint32_t num_rows;
-    std::array<Page<T> *, TABLE_MAX_PAGES> pages;
     std::shared_ptr<Pager<T>> pager;
 };
 
-template <typename T>
+template<typename T>
+class Database {
+public:
+    Database(std::string &filename);
+    
+    void open();
+    
+    void close();
+
+    std::shared_ptr<Table<T>> getTable(std::string &name);
+    
+public:
+    std::string db_filename;
+    std::map<std::string, std::shared_ptr<Table<T>>> tables;
+};
+
+template<typename T>
 class Statement {
 public:
-    Statement() = default;
-
     bool startWith(const std::string &input, const std::string &prefix);
 
     PrepareResult prepareStatement(const std::string &input);
