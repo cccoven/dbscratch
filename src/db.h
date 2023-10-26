@@ -118,7 +118,7 @@ public:
 template<typename T>
 class Statement {
 public:
-    bool startWith(const std::string &input, const std::string &prefix);
+    bool beginWith(const std::string &input, const std::string &prefix);
 
     PrepareResult prepareStatement(const std::string &input);
 
