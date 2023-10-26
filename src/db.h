@@ -34,6 +34,8 @@ enum ExecuteResult {
     EXECUTE_TABLE_FULL,
 };
 
+
+
 const size_t COLUMN_USERNAME_SIZE = 32;
 const size_t COLUMN_EMAIL_SIZE = 255;
 
@@ -68,19 +70,25 @@ class Page {
 public:
     int index;
     std::array<T, ROWS_PER_PAGE> rows;
+    // std::vector<T> rows;
 };
 
 template<typename T>
 class Pager {
 public:
+    Pager(int fd, uint32_t file_len);
+
     ~Pager();
     
     void flush(uint32_t page_num, uint32_t size);
+
+    Page<T> *getPage(uint32_t page_num);
     
 public:
     int fd;
     uint32_t file_len;
     std::array<Page<T> *, TABLE_MAX_PAGES> pages;
+    // std::vector<Page<T> *> pages;
 };
 
 template<typename T>
@@ -116,8 +124,18 @@ public:
 };
 
 template<typename T>
+class MetaCommand {
+public:
+    MetaCommand() = default;
+
+    MetaCommandResult execute(const std::string &input, std::shared_ptr<Table<T>> &table);
+};
+
+template<typename T>
 class Statement {
 public:
+    ~Statement();
+
     bool beginWith(const std::string &input, const std::string &prefix);
 
     PrepareResult prepareStatement(const std::string &input);
@@ -132,7 +150,7 @@ public:
 
 public:
     StatementType type;
-    Row row_to_insert;
+    T row_to_insert;
 };
 
 #endif // DBSCRATCH_DB_H

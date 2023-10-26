@@ -6,19 +6,29 @@
 
 #include "db.h"
 
-class MetaCommand {
-public:
-    MetaCommand() = default;
-
-    MetaCommandResult execute(const std::string &input);
-};
-
-MetaCommandResult MetaCommand::execute(const std::string &input) {
+template<typename T>
+MetaCommandResult MetaCommand<T>::execute(const std::string &input, std::shared_ptr<Table<T>> &table) {
     if (input == ".exit") {
+        // flush
+        std::shared_ptr<Pager<T>> pager = table->pager;
+        uint32_t num_full_pages = table->num_rows / ROWS_PER_PAGE;
+
+        for (uint32_t i = 0; i < num_full_pages; i++) {
+            Page<T> *page = pager->pages.at(i);
+            if (page == nullptr) {
+                continue;
+            }
+
+            pager->flush(i, PAGE_SIZE);
+        }
+
         std::exit(EXIT_SUCCESS);
     }
     return META_COMMAND_UNRECOGNIZED_COMMAND;
 }
+
+template<typename T>
+Pager<T>::Pager(int fd, uint32_t file_len) : fd(fd), file_len(file_len) {}
 
 template<typename T>
 Pager<T>::~Pager() {
@@ -29,15 +39,6 @@ Pager<T>::~Pager() {
 
 template<typename T>
 void Pager<T>::flush(uint32_t page_num, uint32_t size) {
-    // mock
-    if (fd == 0) {
-        fd = open("/Users/coven/VSCodeProjects/dbscratch/test.db", O_RDWR | O_CREAT | S_IWUSR | S_IRUSR);
-        if (fd == -1) {
-            std::cerr << "unable to open file" << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    }
-    
     Page<T> *page = pages.at(page_num);
     if (page == nullptr) {
         std::cerr << "try to flush null page" << std::endl;
@@ -55,11 +56,62 @@ void Pager<T>::flush(uint32_t page_num, uint32_t size) {
         std::cerr << "error writing: " << errno << std::endl;
         std::exit(EXIT_FAILURE);
     }
+
+    // for (int i = 0; i < page->index; i++) {
+    //     T row = page->rows.at(i);
+    //     ssize_t bytes_written = write(fd, row, size);
+    //     if (bytes_written == -1) {
+    //         std::cerr << "error writing: " << errno << std::endl;
+    //         std::exit(EXIT_FAILURE);
+    //     }
+    // }
+}
+
+template<typename T>
+Page<T> *Pager<T>::getPage(uint32_t page_num) {
+    if (page_num > TABLE_MAX_PAGES) {
+        std::cerr << "tried to fetch page number out of bounds" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    Page<T> *page = pages.at(page_num);
+    if (page == nullptr) {
+        // cache miss, load from file
+        Page<T> *page = new Page<T>();
+        uint32_t num_pages = file_len / PAGE_SIZE;
+
+        if (file_len % PAGE_SIZE) {
+            // TODO
+        }
+
+        if (page_num <= num_pages) {
+            // 1 * 4096
+            lseek(fd, page_num * PAGE_SIZE, SEEK_SET);
+            ssize_t bytes_read = read(fd, page, PAGE_SIZE);
+            if (bytes_read == -1) {
+                std::cerr << "error while reading file: " << errno << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+        }
+
+        pages[page_num] = page;
+    }
+
+    return pages.at(page_num);
 }
 
 template<typename T>
 Table<T>::Table() {
-    pager = std::make_shared<Pager<T>>();
+    int fd = open("/root/projects/dbscratch/test.db", O_RDWR | O_CREAT, S_IWUSR | S_IRUSR | O_EXCL);
+    if (fd == -1) {
+        std::cerr << "unable to open file: " << errno << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    // pager = std::make_shared<Pager<T>>(fd, 0);
+
+    off_t file_len = lseek(fd, 0, SEEK_END);
+    pager = std::make_shared<Pager<T>>(fd, file_len);
+    num_rows = file_len / ROW_SIZE;
 }
 
 template<typename T>
@@ -68,19 +120,21 @@ Table<T>::~Table() {}
 template<typename T>
 void Table<T>::storeRow(T t) {
     uint32_t page_num = num_rows / ROWS_PER_PAGE;
-    Page<T> *page = pager->pages[page_num];
-    if (page == nullptr) {
-        // 这里的 page 是一个局部变量
-        // 使用 new Page<T>() 之后会分配一个新的指针，并不会修改 pages[page_num] 原来指向的指针
-        // 所以这里需要将 pages[page_num] 指向新的指针
-        page = pager->pages[page_num] = new Page<T>();
-        num_pages++;
-    }
+    Page<T> *page = pager->getPage(page_num);
     page->rows[page->index] = t;
     page->index++;
-    
-    // simple flush
-    pager->flush(page_num, PAGE_SIZE);
+
+    // uint32_t page_num = num_rows / ROWS_PER_PAGE;
+    // Page<T> *page = pager->pages.at(page_num);
+    // if (page == nullptr) {
+    //     // 这里的 page 是一个局部变量
+    //     // 使用 new Page<T>() 之后会分配一个新的指针，并不会修改 pages[page_num] 原来指向的指针
+    //     // 所以这里需要将 pages[page_num] 指向新的指针
+    //     page = pager->pages[page_num] = new Page<T>();
+    //     num_pages++;
+    // }
+    // page->rows[page->index] = t;
+    // page->index++;
 }
 
 template<typename T>
@@ -96,6 +150,11 @@ template<typename T>
 std::shared_ptr<Table<T>> Database<T>::getTable(std::string &name) {
     std::shared_ptr<Table<T>> table = tables.at(name);
     return table;
+}
+
+template<typename T>
+Statement<T>::~Statement() {
+    // delete row_to_insert;
 }
 
 template<typename T>
@@ -123,21 +182,24 @@ PrepareResult Statement<T>::prepareInsert(const std::string &input) {
         return PREPARE_NEGATIVE_ID;
     }
 
-    row_to_insert.id = std::stoul(values.at(0));
-    row_to_insert.username = values.at(1);
-    row_to_insert.email = values.at(2);
+    Row *row = new Row();
+    row->id = std::stoul(values.at(0));
+    row->username = values.at(1);
+    row->email = values.at(2);
 
-    if (row_to_insert.id == 0 || row_to_insert.username.empty() || row_to_insert.email.empty()) {
+    if (row->id == 0 || row->username.empty() || row->email.empty()) {
         return PREPARE_SYNTAX_ERROR;
     }
 
-    if (row_to_insert.username.length() > COLUMN_USERNAME_SIZE) {
+    if (row->username.length() > COLUMN_USERNAME_SIZE) {
         return PREPARE_STRING_TOO_LONG;
     }
 
-    if (row_to_insert.email.length() > COLUMN_EMAIL_SIZE) {
+    if (row->email.length() > COLUMN_EMAIL_SIZE) {
         return PREPARE_STRING_TOO_LONG;
     }
+
+    row_to_insert = row;
 
     return PREPARE_SUCCESS;
 }
@@ -180,19 +242,24 @@ ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
 
 template<typename T>
 ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
-    for (int i = 0; i < table->num_pages; i++) {
-        Page<T> *page = table->pager->pages[i];
-        for (int j = 0; j < page->index; j++) {
-            Row row = page->rows[j];
-            std::cout
-                    << "("
-                    << "id: " << row.id
-                    << " username: " << row.username
-                    << " email: " << row.email
-                    << ")"
-                    << std::endl;
-        }
+    for (Page<T> *page: table->pager->pages) {
+
     }
+
+
+    // for (int i = 0; i < table->num_pages; i++) {
+    //     Page<T> *page = table->pager->pages[i];
+    //     for (int j = 0; j < page->index; j++) {
+    //         Row *row = page->rows[j];
+    //         std::cout
+    //                 << "("
+    //                 << "id: " << row->id
+    //                 << " username: " << row->username
+    //                 << " email: " << row->email
+    //                 << ")"
+    //                 << std::endl;
+    //     }
+    // }
 
     return EXECUTE_SUCCESS;
 }
@@ -208,20 +275,20 @@ int main(int argc, char *argv[]) {
     
     std::cout << "db file: " << filename << std::endl;
     
-    std::shared_ptr<Database<Row>> db = std::make_shared<Database<Row>>(filename);
-    db->open();
+    // std::shared_ptr<Database<Row>> db = std::make_shared<Database<Row>>(filename);
+    // db->open();
 
     std::string command;
-    std::shared_ptr<Table<Row>> table = std::make_shared<Table<Row>>();
+    std::shared_ptr<Table<Row *>> table = std::make_shared<Table<Row *>>();
 
     while (true) {
         std::cout << "db > ";
         std::getline(std::cin, command);
 
-        MetaCommand metaCommand{};
+        MetaCommand<Row *> metaCommand{};
         if (command.at(0) == '.') {
             // consider it's a meta command
-            switch (metaCommand.execute(command)) {
+            switch (metaCommand.execute(command, table)) {
                 case META_COMMAND_SUCCESS:
                     continue;
                 case META_COMMAND_UNRECOGNIZED_COMMAND:
@@ -230,7 +297,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        Statement<Row> statement{};
+        Statement<Row *> statement{};
         switch (statement.prepareStatement(command)) {
             case PREPARE_SUCCESS:
                 break;

@@ -8,7 +8,6 @@ build:
 	mkdir $(BUILD_DIR)
 	cd $(PWD)/$(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(PWD)
 	cmake --build $(PWD)/$(BUILD_DIR)
-	mv $(BUILD_DIR)/$(TARGET) bin/
 
 run: build
 	./bin/$(TARGET)
