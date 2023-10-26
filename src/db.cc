@@ -99,7 +99,7 @@ std::shared_ptr<Table<T>> Database<T>::getTable(std::string &name) {
 }
 
 template<typename T>
-bool Statement<T>::startWith(const std::string &input, const std::string &prefix) {
+bool Statement<T>::beginWith(const std::string &input, const std::string &prefix) {
     return input.compare(0, prefix.length(), prefix) == 0;
 }
 
@@ -144,10 +144,10 @@ PrepareResult Statement<T>::prepareInsert(const std::string &input) {
 
 template<typename T>
 PrepareResult Statement<T>::prepareStatement(const std::string &input) {
-    if (startWith(input, "insert")) {
+    if (beginWith(input, "insert")) {
         return prepareInsert(input);
     }
-    if (startWith(input, "select")) {
+    if (beginWith(input, "select")) {
         type = STATEMENT_SELECT;
         return PREPARE_SUCCESS;
     }
