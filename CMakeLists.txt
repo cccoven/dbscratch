@@ -10,7 +10,11 @@ set(CMAKE_CXX_STANDARD 11)
 # )
 
 add_executable(dbscratch
-        src/db.cc
+        src/main.cpp
+        src/table.h
+        src/constants.h
+        src/meta_command.h
+        src/statement.h
+        src/pager.h
         src/db.h
 )
-
