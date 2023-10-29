@@ -4,6 +4,13 @@
 #include <cstdint>
 #include <cstddef>
 
+class Row {
+public:
+    uint32_t id;
+    std::string username;
+    std::string email;
+};
+
 const size_t COLUMN_ID_SIZE = 4;
 const size_t COLUMN_USERNAME_SIZE = 32;
 const size_t COLUMN_EMAIL_SIZE = 255;

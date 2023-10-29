@@ -24,7 +24,7 @@ public:
     
     void flush(uint32_t page_num, uint32_t size);
 
-    Page<T> *getPage(uint32_t page_num);
+    Page<T> *getPage(uint32_t num_rows, uint32_t page_num);
     
 public:
     int fd;
@@ -56,24 +56,26 @@ void Pager<T>::flush(uint32_t page_num, uint32_t size) {
         std::exit(EXIT_FAILURE);
     }
     
-    ssize_t bytes_written = write(fd, pages[page_num], size);
-    if (bytes_written == -1) {
-        std::cerr << "error writing: " << errno << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
-    // for (int i = 0; i < page->index; i++) {
-    //     T row = page->rows.at(i);
-    //     ssize_t bytes_written = write(fd, row, size);
-    //     if (bytes_written == -1) {
-    //         std::cerr << "error writing: " << errno << std::endl;
-    //         std::exit(EXIT_FAILURE);
-    //     }
+    // ssize_t bytes_written = write(fd, page->rows.data(), size);
+    // if (bytes_written == -1) {
+    //     std::cerr << "error writing: " << errno << std::endl;
+    //     std::exit(EXIT_FAILURE);
     // }
+
+    for (int i = 0; i < page->index; i++) {
+        T row = page->rows.at(i);
+        off_t ofs = lseek(fd, i * ROW_SIZE, SEEK_SET);
+        // ssize_t bytes_written = write(fd, row, size);
+        ssize_t bytes_written = write(fd, row, ROW_SIZE);
+        if (bytes_written == -1) {
+            std::cerr << "error writing: " << errno << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+    }
 }
 
 template<typename T>
-Page<T> *Pager<T>::getPage(uint32_t page_num) {
+Page<T> *Pager<T>::getPage(uint32_t num_rows, uint32_t page_num) {
     if (page_num > TABLE_MAX_PAGES) {
         std::cerr << "tried to fetch page number out of bounds" << std::endl;
         std::exit(EXIT_FAILURE);
@@ -82,7 +84,7 @@ Page<T> *Pager<T>::getPage(uint32_t page_num) {
     Page<T> *page = pages.at(page_num);
     if (page == nullptr) {
         // cache miss, load from file
-        Page<T> *page = new Page<T>();
+        page = new Page<T>();
         uint32_t num_pages = file_len / PAGE_SIZE;
 
         if (file_len % PAGE_SIZE) {
@@ -90,13 +92,30 @@ Page<T> *Pager<T>::getPage(uint32_t page_num) {
         }
 
         if (page_num <= num_pages) {
-            // 1 * 4096
-            lseek(fd, page_num * PAGE_SIZE, SEEK_SET);
-            ssize_t bytes_read = read(fd, page, PAGE_SIZE);
-            if (bytes_read == -1) {
-                std::cerr << "error while reading file: " << errno << std::endl;
-                std::exit(EXIT_FAILURE);
+            // 0 * 4096
+            // lseek(fd, page_num * PAGE_SIZE, SEEK_SET);
+
+            for (uint32_t i = 0; i < num_rows; i++) {
+                // T row = page->rows[i];
+                if (page->rows[i] == nullptr) {
+                    page->rows[i] = new Row();
+                }
+                
+                off_t offset = lseek(fd, i * ROW_SIZE, SEEK_SET);
+                ssize_t bytes_read = read(fd, page->rows[i], ROW_SIZE);
+                if (bytes_read == -1) {
+                    std::cerr << "error while reading file: " << errno << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+                page->index++;
+                // page->rows[page->index] = row;
             }
+
+            // ssize_t bytes_read = read(fd, page->rows.data(), num_rows * ROW_SIZE);
+            // if (bytes_read == -1) {
+            //     std::cerr << "error while reading file: " << errno << std::endl;
+            //     std::exit(EXIT_FAILURE);
+            // }
         }
 
         // 这里的 page 是一个局部变量

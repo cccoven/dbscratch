@@ -9,5 +9,5 @@ build:
 	cd $(PWD)/$(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(PWD)
 	cmake --build $(PWD)/$(BUILD_DIR)
 
-run: build
-	./bin/$(TARGET)
+run:
+	./$(BUILD_DIR)/$(TARGET) $(PWD)/test.db

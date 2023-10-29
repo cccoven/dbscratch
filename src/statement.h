@@ -9,13 +9,6 @@
 
 #include "table.h"
 
-class Row {
-public:
-    uint32_t id;
-    std::string username;
-    std::string email;
-};
-
 enum PrepareResult {
     PREPARE_SUCCESS,
     PREPARE_NEGATIVE_ID,
@@ -144,8 +137,9 @@ ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
 
 template<typename T>
 ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
-    for (uint32_t i = 0; i < table->num_rows; i++) {
-        Page<T> *page = table->pager->getPage(i / ROWS_PER_PAGE);
+    uint32_t page_num = (table->num_rows / ROWS_PER_PAGE) + 1;
+    for (uint32_t i = 0; i < page_num; i++) {
+        Page<T> *page = table->pager->getPage(table->num_rows, i);
         for (int i = 0; i < page->index; i++) {
             Row *row = page->rows[i];
             std::cout
@@ -157,21 +151,6 @@ ExecuteResult Statement<T>::executeSelect(std::shared_ptr<Table<T>> &table) {
                 << std::endl;
         }
     }
-
-
-    // for (int i = 0; i < table->num_pages; i++) {
-    //     Page<T> *page = table->pager->pages[i];
-    //     for (int j = 0; j < page->index; j++) {
-    //         Row *row = page->rows[j];
-    //         std::cout
-    //                 << "("
-    //                 << "id: " << row->id
-    //                 << " username: " << row->username
-    //                 << " email: " << row->email
-    //                 << ")"
-    //                 << std::endl;
-    //     }
-    // }
 
     return EXECUTE_SUCCESS;
 }

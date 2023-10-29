@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
     // db->open();
 
     std::string command;
-    std::shared_ptr<Table<Row *>> table = std::make_shared<Table<Row *>>();
+    std::shared_ptr<Table<Row *>> table = std::make_shared<Table<Row *>>(filename);
 
     while (true) {
         std::cout << "db > ";

@@ -13,7 +13,7 @@
 template<typename T>
 class Table {
 public:
-    Table();
+    Table(std::string filename);
     
     ~Table();
 
@@ -29,8 +29,8 @@ public:
 };
 
 template<typename T>
-Table<T>::Table() {
-    int fd = open("/root/projects/dbscratch/test.db", O_RDWR | O_CREAT, S_IWUSR | S_IRUSR | O_EXCL);
+Table<T>::Table(std::string filename) {
+    int fd = open(filename.c_str(), O_RDWR | O_CREAT, S_IWUSR | S_IRUSR | O_EXCL);
     if (fd == -1) {
         std::cerr << "unable to open file: " << errno << std::endl;
         std::exit(EXIT_FAILURE);
@@ -53,7 +53,7 @@ void Table<T>::insert(T t) {
 template<typename T>
 void Table<T>::storeRow(T t) {
     uint32_t page_num = num_rows / ROWS_PER_PAGE;
-    Page<T> *page = pager->getPage(page_num);
+    Page<T> *page = pager->getPage(num_rows, page_num);
     page->rows[page->index] = t;
     page->index++;
 
