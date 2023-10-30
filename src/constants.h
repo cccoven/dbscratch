@@ -3,13 +3,7 @@
 
 #include <cstdint>
 #include <cstddef>
-
-class Row {
-public:
-    uint32_t id;
-    std::string username;
-    std::string email;
-};
+#include <string>
 
 const size_t COLUMN_ID_SIZE = 4;
 const size_t COLUMN_USERNAME_SIZE = 32;
@@ -34,5 +28,25 @@ const uint32_t PAGE_SIZE = 4096; // 4kb, equal to OS visual memory
 const uint32_t TABLE_MAX_PAGES = 100;
 const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
+
+class Row {
+public:
+    void serialize();
+
+    const char *deserialize(const char *data);
+
+public:
+    uint32_t id;
+    std::string username;
+    const uint32_t size_username;
+    std::string email;
+    const uint32_t size_email;
+};
+
+void Row::serialize() {
+    
+}
+
+const char* Row::deserialize(const char *data) {}
 
 #endif // DBSCRATCH_CONSTANTS_H
