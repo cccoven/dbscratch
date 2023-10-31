@@ -13,6 +13,9 @@ class Page {
 public:
     int index;
     std::array<T, ROWS_PER_PAGE> rows;
+
+private:
+    size_t rows_per_page;
 };
 
 template<typename T>

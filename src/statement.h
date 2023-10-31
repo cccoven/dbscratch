@@ -50,9 +50,7 @@ public:
 };
 
 template<typename T>
-Statement<T>::~Statement() {
-    // delete row_to_insert;
-}
+Statement<T>::~Statement() {}
 
 template<typename T>
 bool Statement<T>::beginWith(const std::string &input, const std::string &prefix) {
@@ -61,7 +59,6 @@ bool Statement<T>::beginWith(const std::string &input, const std::string &prefix
 
 template<typename T>
 PrepareResult Statement<T>::prepareInsert(const std::string &input) {
-    type = STATEMENT_INSERT;
     std::vector<std::string> columns = {"id", "username", "email"};
     std::istringstream assigned_args(input.substr(7));
     std::vector<std::string> values;
@@ -79,22 +76,24 @@ PrepareResult Statement<T>::prepareInsert(const std::string &input) {
         return PREPARE_NEGATIVE_ID;
     }
 
-    row_to_insert = new Row();
-    row_to_insert->id = std::stoul(values.at(0));
-    row_to_insert->username = values.at(1);
-    row_to_insert->email = values.at(2);
+    Row row{};
+    row.id = std::stoul(values.at(0));
+    row.username = values.at(1).c_str();
+    row.email = values.at(2).c_str();
 
-    if (row_to_insert->id == 0 || row_to_insert->username.empty() || row_to_insert->email.empty()) {
+    if (row.id == 0 || row.username.empty() || row.email.empty()) {
         return PREPARE_SYNTAX_ERROR;
     }
 
-    if (row_to_insert->username.length() > COLUMN_USERNAME_SIZE) {
+    if (row.username.length() > COLUMN_USERNAME_SIZE) {
         return PREPARE_STRING_TOO_LONG;
     }
 
-    if (row_to_insert->email.length() > COLUMN_EMAIL_SIZE) {
+    if (row.email.length() > COLUMN_EMAIL_SIZE) {
         return PREPARE_STRING_TOO_LONG;
     }
+
+    row_to_insert = row.serialize();
 
     return PREPARE_SUCCESS;
 }
@@ -102,6 +101,7 @@ PrepareResult Statement<T>::prepareInsert(const std::string &input) {
 template<typename T>
 PrepareResult Statement<T>::prepareStatement(const std::string &input) {
     if (beginWith(input, "insert")) {
+        type = STATEMENT_INSERT;
         return prepareInsert(input);
     }
     if (beginWith(input, "select")) {
@@ -128,8 +128,8 @@ ExecuteResult Statement<T>::executeInsert(std::shared_ptr<Table<T>> &table) {
     if (table->num_rows >= TABLE_MAX_ROWS) {
         return EXECUTE_TABLE_FULL;
     }
-
-    table->storeRow(row_to_insert);
+    table->insert(row_to_insert);
+    // table->storeRow(row_to_insert);
     table->num_rows += 1;
 
     return EXECUTE_SUCCESS;

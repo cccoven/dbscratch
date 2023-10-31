@@ -46,7 +46,8 @@ Table<T>::~Table() {}
 
 template<typename T>
 void Table<T>::insert(T t) {
-    uint32_t page_num = num_rows / ROWS_PER_PAGE;
+    uint32_t page_num = num_rows / pager->rows_per_page;
+    
     // ...
 }
 
