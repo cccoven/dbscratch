@@ -20,7 +20,7 @@ const uint32_t NUMS_OFFSET = EMAIL_OFFSET + EMAIL_SIZE;
 const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
 
 class Row {
-public:
+public:                                                
     const char *serialize();
 
     void deserialize(const char *data);

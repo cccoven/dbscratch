@@ -20,13 +20,13 @@ int main(int argc, char *argv[]) {
     // db->open();
 
     std::string command;
-    std::shared_ptr<Table> table = std::make_shared<Table>(filename);
+    std::shared_ptr<Table<char *>> table = std::make_shared<Table<char *>>(filename);
 
     while (true) {
         std::cout << "db > ";
         std::getline(std::cin, command);
-    
-        MetaCommand metaCommand{};
+
+        MetaCommand<char *> metaCommand{};
         if (command.at(0) == '.') {
             // consider it's a meta command
             switch (metaCommand.execute(command, table)) {
@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
                     continue;
             }
         }
-    
-        Statement statement{};
+
+        Statement<char *> statement{};
         switch (statement.prepareStatement(command)) {
             case PREPARE_SUCCESS:
                 break;
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
                 std::cerr << "unrecognized statement: " << command << std::endl;
                 continue;
         }
-    
+
         switch (statement.execute(table)) {
             case EXECUTE_SUCCESS:
                 std::cout << "executed" << std::endl;
