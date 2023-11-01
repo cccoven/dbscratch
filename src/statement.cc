@@ -79,7 +79,20 @@ ExecuteResult Statement::executeInsert(std::shared_ptr<Table> &table) {
 }
 
 ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {
-    // uint32_t page_num = (table->num_rows / ROWS_PER_PAGE) + 1;
+    uint32_t page_num = (table->num_rows / (table->pager->PAGE_SIZE / table->pager->row_size));
+    std::shared_ptr<Page> page = table->pager->getPage(page_num);
+    for (auto row: page->rows) {
+        User user{};
+        user.deserialize(row->serialize());
+        std::cout
+            << "("
+            << "id: " << user.id
+            << " username: " << user.username
+            << " email: " << user.email
+            << ")"
+            << std::endl;
+    }
+
     // for (uint32_t i = 0; i < page_num; i++) {
     //     Page *page = table->pager->getPage(table->num_rows, i);
     //     for (int i = 0; i < page->index; i++) {
