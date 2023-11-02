@@ -4,9 +4,6 @@
 #include <string>
 #include <memory>
 #include <iostream>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
 
 #include "pager.h"
 #include "row.h"
@@ -18,6 +15,8 @@ public:
     ~Table();
 
     void insert(std::shared_ptr<Row> row);
+
+    void persist();
 
 public:
     std::string name;

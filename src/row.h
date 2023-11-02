@@ -8,6 +8,25 @@
 
 class Row {
 public:
+    Row() = default;
+
+    Row(char *d, uint32_t s);
+
+    void setData(char *d);
+
+    char *getData();
+
+    void setSize(uint32_t s);
+
+    uint32_t getSize();
+
+private:
+    char *data;
+    uint32_t size;
+};
+
+class RowTemp {
+public:
     virtual char *serialize() = 0;
 
     virtual void deserialize(const char *data) = 0;
@@ -15,15 +34,15 @@ public:
     virtual uint32_t size() = 0;
 };
 
-class User: public Row {
+class User: public RowTemp {
 public:
     User() = default;
 
-    char *serialize() override ;
+    char *serialize() override;
 
-    void deserialize(const char *data) override ;
+    void deserialize(const char *data) override;
 
-    uint32_t size() override ;
+    uint32_t size() override;
 
 public:
     static const uint32_t ID_SIZE = sizeof(uint32_t);

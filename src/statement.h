@@ -29,6 +29,8 @@ enum ExecuteResult {
 
 class Statement {
 public:
+    Statement();
+
     ~Statement();
 
     bool beginWith(const std::string &input, const std::string &prefix);

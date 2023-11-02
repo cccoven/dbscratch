@@ -1,6 +1,10 @@
 #include "statement.h"
 #include "row.h"
 
+Statement::Statement() {
+    row_to_insert = std::make_shared<Row>();
+}
+
 Statement::~Statement() {}
 
 bool Statement::beginWith(const std::string &input, const std::string &prefix) {
@@ -39,7 +43,8 @@ PrepareResult Statement::prepareInsert(const std::string &input) {
     std::strcpy(user->username, username.c_str());
     std::strcpy(user->email, email.c_str());
 
-    row_to_insert = user;
+    row_to_insert->setData(user->serialize()); 
+    row_to_insert->setSize(user->size());
 
     return PREPARE_SUCCESS;
 }
@@ -79,32 +84,46 @@ ExecuteResult Statement::executeInsert(std::shared_ptr<Table> &table) {
 }
 
 ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {
-    uint32_t page_num = (table->num_rows / (table->pager->PAGE_SIZE / table->pager->row_size));
-    std::shared_ptr<Page> page = table->pager->getPage(page_num);
-    for (auto row: page->rows) {
-        User user{};
-        user.deserialize(row->serialize());
-        std::cout
-            << "("
-            << "id: " << user.id
-            << " username: " << user.username
-            << " email: " << user.email
-            << ")"
-            << std::endl;
+    if (table->num_rows == 0) {
+        return EXECUTE_SUCCESS;
     }
 
-    // for (uint32_t i = 0; i < page_num; i++) {
-    //     Page *page = table->pager->getPage(table->num_rows, i);
-    //     for (int i = 0; i < page->index; i++) {
-    //         Row *row = page->rows[i];
-    //         std::cout
-    //             << "("
-    //             << "id: " << row->id
-    //             << " username: " << row->username
-    //             << " email: " << row->email
-    //             << ")"
-    //             << std::endl;
-    //     }
+    std::shared_ptr<Pager> pager = table->pager;
+    uint32_t num_pages = pager->file_len / pager->PAGE_SIZE;
+    if (pager->file_len % pager->PAGE_SIZE) {
+        num_pages += 1;
+    }
+
+    for (size_t i = 0; i < num_pages; i++) {
+        std::shared_ptr<Page> page = table->pager->getPage(i);
+        for (std::shared_ptr<Row> row: page->rows) {
+            User user{};
+            user.deserialize(row->getData());
+            std::cout
+                << "("
+                << "id: " << user.id
+                << " username: " << user.username
+                << " email: " << user.email
+                << ")"
+                << std::endl;
+        }
+    }
+    
+
+    // uint32_t rows_per_page = table->pager->PAGE_SIZE / table->pager->row_size;
+    // uint32_t page_num = table->num_rows / rows_per_page;
+
+    // std::shared_ptr<Page> page = table->pager->getPage(page_num);
+    // for (std::shared_ptr<Row> row: page->rows) {
+    //     User user{};
+    //     user.deserialize(row->getData());
+    //     std::cout
+    //         << "("
+    //         << "id: " << user.id
+    //         << " username: " << user.username
+    //         << " email: " << user.email
+    //         << ")"
+    //         << std::endl;
     // }
 
     return EXECUTE_SUCCESS;

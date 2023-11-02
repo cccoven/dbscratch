@@ -1,5 +1,23 @@
 #include "row.h"
 
+Row::Row(char *d, uint32_t s) : data(d), size(s) {}
+
+void Row::setData(char *d) {
+    data = d;
+}
+
+char *Row::getData() {
+    return data;
+}
+
+void Row::setSize(uint32_t s) {
+    size = s;
+}
+
+uint32_t Row::getSize() {
+    return size;
+}
+
 char *User::serialize() {
     char *buffer = new char[size()];
     std::memcpy(buffer + ID_OFFSET, &id, ID_SIZE);
