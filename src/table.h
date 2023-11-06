@@ -20,7 +20,6 @@ public:
 
 public:
     std::string name;
-    int num_pages;
     uint32_t num_rows;
     std::shared_ptr<Pager> pager;
 };

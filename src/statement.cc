@@ -88,15 +88,12 @@ ExecuteResult Statement::executeSelect(std::shared_ptr<Table> &table) {
         return EXECUTE_SUCCESS;
     }
 
-    std::shared_ptr<Pager> pager = table->pager;
-    uint32_t num_pages = pager->file_len / pager->PAGE_SIZE;
-    if (pager->file_len % pager->PAGE_SIZE) {
-        num_pages += 1;
-    }
+    uint32_t rows_per_page = table->pager->PAGE_SIZE / table->pager->row_size;
+    uint32_t total_pages = (table->num_rows + rows_per_page - 1) / rows_per_page;
 
-    for (size_t i = 0; i < num_pages; i++) {
+    for (uint32_t i = 0; i < total_pages; i++) {
         std::shared_ptr<Page> page = table->pager->getPage(i);
-        for (std::shared_ptr<Row> row: page->rows) {
+         for (std::shared_ptr<Row> row: page->rows) {
             User user{};
             user.deserialize(row->getData());
             std::cout

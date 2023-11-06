@@ -33,7 +33,7 @@ public:
     static const uint32_t TABLE_MAX_PAGES = 100;
 
     std::string filename;
-    // std::fstream fs;
+    std::fstream fs;
     uint32_t file_len;
     uint32_t row_size;
     std::array<std::shared_ptr<Page>, TABLE_MAX_PAGES> pages;

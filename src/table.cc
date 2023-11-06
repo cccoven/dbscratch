@@ -6,13 +6,23 @@ Table::Table(const std::string &filename) {
     if (inf.fail()) {
         return;
     }
-    inf.read((char *) &pager->row_size, sizeof(uint32_t));
-    uint32_t rows_size;
-    inf.read((char *) &rows_size, sizeof(uint32_t));
+
+    inf.seekg(0, std::ios::end);
+    uint32_t file_size = inf.tellg();
+    pager->file_len = file_size;
+    if (file_size > 0) {
+        inf.seekg(0, std::ios::beg);
+        inf.read((char *) &pager->row_size, sizeof(uint32_t));
+        num_rows = file_size / pager->row_size;
+    }
+
+    // inf.read((char *) &pager->row_size, sizeof(uint32_t));
+    // uint32_t rows_size;
+    // inf.read((char *) &rows_size, sizeof(uint32_t));
     
-    uint32_t rows_total = (pager->row_size * rows_size);
-    pager->file_len = rows_total;
-    num_rows = rows_total / pager->row_size;
+    // uint32_t rows_total = (pager->row_size * rows_size);
+    // pager->file_len = rows_total + sizeof(pager->row_size) + sizeof(rows_size);
+    // num_rows = rows_total / pager->row_size;
 
     inf.close();
 }
