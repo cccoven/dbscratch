@@ -14,7 +14,7 @@ public:
     
     ~Table();
 
-    void insert(std::shared_ptr<Row> row);
+    void insert(std::shared_ptr<Row> &row);
 
     void persist();
 

@@ -18,11 +18,11 @@ class Pager {
 public:
     Pager() = default;
 
-    Pager(std::string filename);
+    Pager(const std::string& filename);
 
     ~Pager();
 
-    void addRow(uint32_t page_num, std::shared_ptr<Row> row);
+    void addRow(uint32_t page_num, std::shared_ptr<Row> &row);
     
     void flush(uint32_t page_num);
 
@@ -34,8 +34,8 @@ public:
 
     std::string filename;
     std::fstream fs;
-    uint32_t file_len;
-    uint32_t row_size;
+    uint32_t file_len{};
+    uint32_t row_size{};
     std::array<std::shared_ptr<Page>, TABLE_MAX_PAGES> pages;
 };
 

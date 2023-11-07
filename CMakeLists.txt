@@ -18,4 +18,6 @@ add_executable(dbscratch
         src/pager.cc
         src/db.h
         src/db.cc
+        src/cursor.cc
+        src/cursor.h
 )
