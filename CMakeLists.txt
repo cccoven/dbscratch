@@ -20,4 +20,6 @@ add_executable(dbscratch
         src/db.cc
         src/cursor.cc
         src/cursor.h
+        src/btree.cc
+        src/btree.h
 )

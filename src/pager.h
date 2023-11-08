@@ -9,6 +9,11 @@
 
 #include "row.h"
 
+/* Page Format:
+ * |----------------------------------|
+ * | ROW_SIZE | ROWS_SIZE | Row | Row | ...
+ * |----------------------------------|
+ * */
 class Page {
 public:
     std::vector<std::shared_ptr<Row>> rows;
